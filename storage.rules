@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is an admin
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'aarushk0207@gmail.com' ||
+        request.auth.token.email == 'kalanidhi.admin@gmail.com'
+      );
+    }
+
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
