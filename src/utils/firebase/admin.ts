@@ -1,9 +1,13 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
-import { getStorage } from 'firebase-admin/storage';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAuth, Auth } from 'firebase-admin/auth';
+import { getStorage, Storage } from 'firebase-admin/storage';
 
-let adminApp: App;
+// Lazily initialized singletons — only created when first accessed at runtime,
+// never during build-time static analysis.
+let _db: Firestore | null = null;
+let _auth: Auth | null = null;
+let _storage: Storage | null = null;
 
 function getAdminApp(): App {
   if (getApps().length > 0) {
@@ -19,7 +23,20 @@ function getAdminApp(): App {
   });
 }
 
-export const adminApp_    = getAdminApp();
-export const adminDb      = getFirestore(adminApp_);
-export const adminAuth    = getAuth(adminApp_);
-export const adminStorage = getStorage(adminApp_);
+export function getAdminDb(): Firestore {
+  if (!_db) _db = getFirestore(getAdminApp());
+  return _db;
+}
+
+export function getAdminAuth(): Auth {
+  if (!_auth) _auth = getAuth(getAdminApp());
+  return _auth;
+}
+
+export function getAdminStorage(): Storage {
+  if (!_storage) _storage = getStorage(getAdminApp());
+  return _storage;
+}
+
+// Named aliases for backwards compatibility
+export { getAdminDb as adminDb, getAdminAuth as adminAuth, getAdminStorage as adminStorage };

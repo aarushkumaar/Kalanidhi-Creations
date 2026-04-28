@@ -49,8 +49,6 @@ export default function HeroCanvas() {
           rotation={[0, 0, 0]} 
           polar={[-Math.PI / 4, Math.PI / 4]} 
           azimuth={[-Math.PI / 4, Math.PI / 4]}
-          config={{ mass: 2, tension: 400 }}
-          snap={{ mass: 4, tension: 400 }}
         >
           <ambientLight intensity={0.5} />
           <directionalLight position={[10, 10, 10]} intensity={1.5} color="#d4af37" />

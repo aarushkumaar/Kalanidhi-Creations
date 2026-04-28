@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Bodoni_Moda, DM_Sans, DM_Serif_Display } from 'next/font/google';
+import { Cormorant_Garamond, DM_Sans } from 'next/font/google';
 import './globals.css';
 import CustomCursor from '@/components/cursor/CustomCursor';
 import PageTransition from '@/components/ui/PageTransition';
@@ -7,11 +7,11 @@ import ToastContainer from '@/components/ui/Toast';
 import Navigation from '@/components/nav/Navigation';
 import Footer from '@/components/Footer';
 
-const bodoni = Bodoni_Moda({
+const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['300', '400', '500', '600', '700'],
   style: ['normal', 'italic'],
-  variable: '--font-bodoni',
+  variable: '--font-cormorant',
   display: 'swap',
 });
 
@@ -21,16 +21,9 @@ const dmSans = DM_Sans({
   display: 'swap',
 });
 
-const dmSerif = DM_Serif_Display({
-  subsets: ['latin'],
-  weight: '400',
-  variable: '--font-dm-serif',
-  display: 'swap',
-});
-
 export const metadata: Metadata = {
-  title: 'Kalanidhi | Premium Design',
-  description: 'A luxurious digital boutique by Kalanidhi.',
+  title: 'Kalanidhi | Luxury Indian Art Boutique',
+  description: 'Discover timeless jewellery and handcrafted art pieces from Kalanidhi — a luxury Indian boutique rooted in heritage and unparalleled craftsmanship.',
 };
 
 export default function RootLayout({
@@ -41,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${bodoni.variable} ${dmSans.variable} ${dmSerif.variable} font-sans antialiased`}
+        className={`${cormorant.variable} ${dmSans.variable} font-sans antialiased`}
       >
         <CustomCursor />
         <ToastContainer />

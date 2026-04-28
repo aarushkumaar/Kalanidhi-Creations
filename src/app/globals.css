@@ -4,23 +4,29 @@
 
 @layer base {
   :root {
-    --background: #faf8f5;
+    /* Core palette */
+    --ivory:  #FAF7F2;
+    --blush:  #F2D9D0;
+    --sage:   #D4E2D4;
+    --taupe:  #C9B8A8;
+
+    --background: #FAF7F2;
     --foreground: #1a1a1a;
     
-    --muted: #f0ebe4;
-    --muted-foreground: #737373;
+    --muted: #F2D9D0;
+    --muted-foreground: #7a6a60;
     
     --primary: #1a1a1a;
-    --primary-foreground: #faf8f5;
+    --primary-foreground: #FAF7F2;
     
-    --gold: #d4af37;
-    --gold-light: #f5e6a8;
-    --gold-dark: #b5952f;
+    --gold: #c9a96e;
+    --gold-light: #e8d5b0;
+    --gold-dark: #a07840;
     
-    --accent: #eae4db;
+    --accent: #D4E2D4;
     --accent-foreground: #1a1a1a;
 
-    --border: #e6dfd5;
+    --border: #C9B8A8;
     
     --radius: 0;
   }
@@ -35,9 +41,9 @@
     --primary: #fcfcfc;
     --primary-foreground: #121212;
     
-    --gold: #d4af37;
-    --gold-light: #f5e6a8;
-    --gold-dark: #b5952f;
+    --gold: #c9a96e;
+    --gold-light: #e8d5b0;
+    --gold-dark: #a07840;
 
     --accent: #2a2a2a;
     --accent-foreground: #fcfcfc;
@@ -51,7 +57,6 @@
 
   body {
     @apply bg-background text-foreground tracking-wide;
-    /* cursor: none; */
   }
 
   ::-webkit-scrollbar {
@@ -67,4 +72,31 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--muted) 25%,
+      var(--blush) 50%,
+      var(--muted) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
 }

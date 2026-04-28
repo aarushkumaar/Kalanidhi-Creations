@@ -1,23 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getEnquiries, updateEnquiry } from '@/utils/firebase/db';
+import { adminGetEnquiries, adminMarkEnquiryRead, adminDeleteEnquiry } from '@/utils/admin-api';
 import { toast } from '@/components/ui/Toast';
+import { Trash2 } from 'lucide-react';
 
 export default function AdminEnquiries() {
   const [enquiries, setEnquiries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchEnquiries();
-  }, []);
+  useEffect(() => { fetchEnquiries(); }, []);
 
   async function fetchEnquiries() {
+    setLoading(true);
     try {
-      const data = await getEnquiries();
-      setEnquiries(data);
-    } catch (error) {
-      console.error(error);
+      const data = await adminGetEnquiries();
+      setEnquiries(data.enquiries || []);
+    } catch (error: any) {
+      toast(error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -25,18 +25,34 @@ export default function AdminEnquiries() {
 
   async function handleMarkRead(id: string) {
     try {
-      await updateEnquiry(id, { isRead: true });
-      toast('Enquiry marked as read', 'success');
+      await adminMarkEnquiryRead(id);
+      toast('Marked as read', 'success');
       fetchEnquiries();
-    } catch (error) {
-      toast('Error updating enquiry', 'error');
+    } catch (error: any) {
+      toast(error.message, 'error');
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this enquiry?')) return;
+    try {
+      await adminDeleteEnquiry(id);
+      toast('Enquiry deleted', 'success');
+      fetchEnquiries();
+    } catch (error: any) {
+      toast(error.message, 'error');
     }
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-5xl">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-serif text-foreground">Enquiries</h1>
+        <div>
+          <h1 className="text-3xl font-serif text-foreground">Enquiries</h1>
+          <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mt-1">
+            {enquiries.filter(e => !e.isRead).length} unread
+          </p>
+        </div>
       </div>
 
       <div className="bg-background border border-border overflow-hidden">
@@ -52,30 +68,46 @@ export default function AdminEnquiries() {
           </thead>
           <tbody>
             {enquiries.map((enq) => (
-              <tr key={enq.id} className="border-t border-border hover:bg-muted/30 transition-colors">
-                <td className="p-4 text-muted-foreground">
-                  {enq.createdAt?.toDate?.() ? enq.createdAt.toDate().toLocaleDateString() : 'N/A'}
+              <tr key={enq.id} className={`border-t border-border hover:bg-muted/30 transition-colors ${!enq.isRead ? 'bg-blush/20' : ''}`}>
+                <td className="p-4 text-muted-foreground text-xs">
+                  {enq.createdAt?._seconds
+                    ? new Date(enq.createdAt._seconds * 1000).toLocaleDateString('en-IN')
+                    : 'N/A'}
                 </td>
                 <td className="p-4 font-medium">{enq.name}</td>
-                <td className="p-4">{enq.email}</td>
+                <td className="p-4 text-sm">{enq.email}</td>
                 <td className="p-4">
                   {!enq.isRead ? (
-                    <span className="text-green-600 bg-green-600/10 border border-green-600/30 px-2 py-1 text-[10px] uppercase tracking-widest">New</span>
+                    <span className="text-gold border border-gold/30 px-2 py-0.5 text-[10px] uppercase tracking-widest">New</span>
                   ) : (
-                    <span className="text-muted-foreground bg-muted border border-border px-2 py-1 text-[10px] uppercase tracking-widest">Read</span>
+                    <span className="text-muted-foreground border border-border px-2 py-0.5 text-[10px] uppercase tracking-widest">Read</span>
                   )}
                 </td>
                 <td className="p-4 text-right flex gap-3 justify-end text-xs uppercase tracking-widest">
                   <a href={`mailto:${enq.email}`} className="text-muted-foreground hover:text-gold transition-colors">Reply</a>
                   {!enq.isRead && (
-                    <button onClick={() => handleMarkRead(enq.id)} className="text-muted-foreground hover:text-gold transition-colors">Mark Read</button>
+                    <button onClick={() => handleMarkRead(enq.id)} className="text-muted-foreground hover:text-gold transition-colors">
+                      Mark Read
+                    </button>
                   )}
+                  <button onClick={() => handleDelete(enq.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
                 </td>
               </tr>
             ))}
             {enquiries.length === 0 && !loading && (
               <tr>
-                <td colSpan={5} className="p-12 text-center text-muted-foreground">No enquiries found.</td>
+                <td colSpan={5} className="p-12 text-center text-muted-foreground uppercase tracking-widest text-xs">
+                  No enquiries found.
+                </td>
+              </tr>
+            )}
+            {loading && (
+              <tr>
+                <td colSpan={5} className="p-12 text-center">
+                  <div className="w-6 h-6 border-2 border-gold/20 border-t-gold rounded-full animate-spin mx-auto" />
+                </td>
               </tr>
             )}
           </tbody>

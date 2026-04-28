@@ -48,7 +48,7 @@ export default function ImageUpload({ bucket, onUpload, currentImage }: Props) {
       await deleteObject(storageRef);
       onUpload('');
       toast('Image removed', 'success');
-    } catch (error) {
+      } catch {
       // Even if delete fails (e.g. file moved), clear the state
       onUpload('');
     }
