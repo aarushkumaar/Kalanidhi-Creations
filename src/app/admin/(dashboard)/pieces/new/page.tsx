@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { adminGetCategories, adminCreatePiece } from '@/utils/admin-api';
-import { storage } from '@/utils/firebase/config';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from '@/components/ui/Toast';
 import { ToggleLeft, ToggleRight } from 'lucide-react';
+import ImageUpload from '@/components/admin/ImageUpload';
 
 export default function AddPiece() {
   const router = useRouter();
@@ -16,46 +15,42 @@ export default function AddPiece() {
   const [price, setPrice] = useState('0');
   const [categoryId, setCategoryId] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
-  const [image, setImage] = useState('');
+  const [coverImage, setCoverImage] = useState('');
+  const [allImages, setAllImages] = useState<string[]>([]);
   const [isAvailable, setIsAvailable] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     adminGetCategories().then(d => setCategories(d.categories || []));
   }, []);
 
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files?.[0]) return;
-    const file = e.target.files[0];
-    setUploading(true);
-    try {
-      const path = `pieces/${Date.now()}.${file.name.split('.').pop()}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file, { contentType: file.type });
-      const url = await getDownloadURL(storageRef);
-      setImage(url);
-      toast('Image uploaded', 'success');
-    } catch (err: any) {
-      toast('Upload failed: ' + err.message, 'error');
-    } finally {
-      setUploading(false);
-    }
+  // Called when ImageUpload finishes uploading (multi-file mode)
+  function handleImagesUploaded(urls: string[]) {
+    setAllImages(prev => {
+      const merged = [...prev, ...urls.filter(u => !prev.includes(u))];
+      if (!coverImage && merged.length > 0) setCoverImage(merged[0]);
+      return merged;
+    });
   }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryId) { toast('Select a collection', 'error'); return; }
+    if (!coverImage) { toast('Upload at least one image', 'error'); return; }
     setLoading(true);
     try {
       const cat = categories.find(c => c.id === categoryId);
       await adminCreatePiece({
-        name: title, description,
+        name: title,
+        description,
         price: parseFloat(price),
-        categoryId, categorySlug: cat?.slug || '',
-        coverImage: image, images: image ? [image] : [],
-        isAvailable, isFeatured,
+        categoryId,
+        categorySlug: cat?.slug || '',
+        coverImage,
+        images: allImages.length ? allImages : [coverImage],
+        isAvailable,
+        isFeatured,
       });
       toast('Piece saved', 'success');
       router.push('/admin/pieces');
@@ -98,22 +93,60 @@ export default function AddPiece() {
             className="bg-transparent border-b border-border py-2 focus:outline-none focus:border-gold transition-colors resize-none text-sm" />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Primary Image</label>
-          {image ? (
-            <div className="relative w-32 h-40">
-              <Image src={image} alt="Preview" fill className="object-cover" sizes="128px" />
-              <button type="button" onClick={() => setImage('')}
-                className="absolute -top-2 -right-2 p-1 bg-background border border-border text-xs rounded-full hover:text-red-500 transition-colors">
+        {/* ── Images — Cloudinary multi-upload ── */}
+        <div className="flex flex-col gap-3">
+          <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            Images (up to 20) *
+          </label>
+
+          {/* Cover image selector */}
+          {allImages.length > 1 && (
+            <div>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground mb-2">
+                Cover image (click to set)
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {allImages.map((url, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCoverImage(url)}
+                    className={`relative w-20 aspect-[3/4] overflow-hidden border-2 transition-colors ${
+                      url === coverImage ? 'border-gold' : 'border-transparent hover:border-gold/40'
+                    }`}
+                  >
+                    <Image src={url} alt={`Image ${i + 1}`} fill className="object-cover" sizes="80px" />
+                    {url === coverImage && (
+                      <span className="absolute bottom-0 inset-x-0 bg-gold text-background text-[8px] uppercase tracking-wider text-center py-0.5">
+                        Cover
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Single cover preview when only 1 image */}
+          {allImages.length === 1 && (
+            <div className="relative w-24 aspect-[3/4] overflow-hidden border border-gold/30">
+              <Image src={allImages[0]} alt="Cover" fill className="object-cover" sizes="96px" />
+              <button
+                type="button"
+                onClick={() => { setAllImages([]); setCoverImage(''); }}
+                className="absolute -top-2 -right-2 w-5 h-5 bg-background border border-border rounded-full flex items-center justify-center text-xs hover:text-red-500 transition-colors"
+              >
                 ×
               </button>
             </div>
-          ) : (
-            <label className="flex flex-col items-center justify-center w-full max-w-xs h-32 border-2 border-dashed border-border hover:border-gold/50 cursor-pointer transition-colors">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground">{uploading ? 'Uploading…' : 'Click to upload'}</span>
-              <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
-            </label>
           )}
+
+          <ImageUpload
+            onUploadMultiple={handleImagesUploaded}
+            onUpload={(url) => { if (!coverImage) setCoverImage(url); }}
+            maxFiles={20}
+            label="Click or drag images to upload"
+          />
         </div>
 
         <div className="flex gap-6">
@@ -128,7 +161,7 @@ export default function AddPiece() {
         </div>
 
         <div className="flex gap-4 pt-6 border-t border-border">
-          <button type="submit" disabled={loading || uploading}
+          <button type="submit" disabled={loading}
             className="bg-gold text-background py-3 px-8 uppercase tracking-widest text-xs font-medium hover:bg-gold-light transition-colors disabled:opacity-50">
             {loading ? 'Saving…' : 'Save Piece'}
           </button>

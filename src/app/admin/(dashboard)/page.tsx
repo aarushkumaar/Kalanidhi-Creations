@@ -9,8 +9,7 @@ import {
   adminGetPieces, adminCreatePiece, adminUpdatePiece, adminDeletePiece,
   adminGetCategories, adminCreateCategory, adminDeleteCategory,
 } from '@/utils/admin-api';
-import { storage } from '@/utils/firebase/config';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
 
 const emptyForm = {
   name: '', description: '', price: '', categoryId: '', categorySlug: '',
@@ -70,11 +69,19 @@ export default function AdminDashboard() {
     const file = e.target.files[0];
     setUploading(true);
     try {
-      const path = `pieces/${Date.now()}-${Math.random().toString(36).slice(2)}.${file.name.split('.').pop()}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file, { contentType: file.type });
-      const url = await getDownloadURL(storageRef);
-      setForm(f => ({ ...f, coverImage: url }));
+      const cloudName    = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+      const formData     = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', uploadPreset);
+      formData.append('folder', 'kalanidhi');
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: 'POST', body: formData }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Upload failed');
+      setForm(f => ({ ...f, coverImage: data.secure_url }));
       toast('Image uploaded', 'success');
     } catch (err: any) { toast('Upload failed: ' + err.message, 'error'); }
     finally { setUploading(false); }

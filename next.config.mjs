@@ -12,6 +12,12 @@ const nextConfig = {
         hostname: 'storage.googleapis.com',
         pathname: '/**',
       },
+      {
+        // Cloudinary CDN
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
     ],
   },
 };
