@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Cormorant_Garamond, DM_Sans } from 'next/font/google';
 import './globals.css';
-import CustomCursor from '@/components/cursor/CustomCursor';
+import dynamic from 'next/dynamic';
+const CustomCursor = dynamic(() => import('@/components/cursor/CustomCursor'), { ssr: false });
 import PageTransition from '@/components/ui/PageTransition';
 import ToastContainer from '@/components/ui/Toast';
 import Navigation from '@/components/nav/Navigation';

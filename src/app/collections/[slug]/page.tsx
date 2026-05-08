@@ -3,7 +3,7 @@ import ProductCard from '@/components/ui/ProductCard';
 import { getCategoryBySlug, getPiecesByCategory } from '@/utils/firebase/db';
 import { notFound } from 'next/navigation';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
   const category = await getCategoryBySlug(params.slug) as any;

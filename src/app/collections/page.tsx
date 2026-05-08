@@ -3,7 +3,7 @@ import Image from 'next/image';
 import SectionLabel from '@/components/ui/SectionLabel';
 import { getCategories } from '@/utils/firebase/db';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function CollectionsPage() {
   const collections = await getCategories().catch(() => []) as any[];

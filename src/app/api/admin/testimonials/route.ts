@@ -24,10 +24,17 @@ export async function POST(req: NextRequest) {
   try {
     const db = getAdminDb();
     const body = await req.json();
+    // Persist new schema fields + legacy aliases for backward compat
     const ref = await db.collection('testimonials').add({
-      ...body,
-      isFeatured: false,
-      createdAt: new Date(),
+      name:         body.name        ?? body.authorName   ?? '',
+      authorName:   body.name        ?? body.authorName   ?? '',
+      location:     body.location    ?? body.authorDetail ?? '',
+      authorDetail: body.location    ?? body.authorDetail ?? '',
+      message:      body.message     ?? body.quote        ?? '',
+      quote:        body.message     ?? body.quote        ?? '',
+      active:       body.active      ?? true,
+      isFeatured:   body.isFeatured  ?? body.active ?? true,
+      createdAt:    new Date(),
     });
     return NextResponse.json({ id: ref.id });
   } catch (error: any) {

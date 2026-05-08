@@ -7,18 +7,27 @@ const STORAGE_KEY = 'kalanidhi-admin';
 const PW_STORAGE_KEY = 'kalanidhi-admin-pw';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const [shaking, setShaking] = useState(false);
 
+  // Emergency kill-switch: if auth state is still null after 2500 ms
+  // (e.g. useEffect stalled), default to locked rather than spinning forever.
   useEffect(() => {
-    const flag = sessionStorage.getItem(STORAGE_KEY);
-    if (flag === 'true') {
-      setAuthenticated(true);
+    const kill = setTimeout(() => {
+      setIsAuthenticated(prev => prev === null ? false : prev);
+    }, 2500);
+    return () => clearTimeout(kill);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const auth = sessionStorage.getItem(STORAGE_KEY);
+      setIsAuthenticated(auth === 'true');
+    } catch {
+      setIsAuthenticated(false);
     }
-    setLoading(false);
   }, []);
 
   function handleSubmit(e: React.FormEvent) {
@@ -27,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (password === correctPw) {
       sessionStorage.setItem(STORAGE_KEY, 'true');
       sessionStorage.setItem(PW_STORAGE_KEY, password);
-      setAuthenticated(true);
+      setIsAuthenticated(true);
       setError(false);
     } else {
       setError(true);
@@ -37,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }
 
-  if (loading) {
+  if (isAuthenticated === null) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <div className="w-8 h-8 border-2 border-gold/20 border-t-gold rounded-full animate-spin" />
@@ -45,7 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!authenticated) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4"
         style={{ background: 'linear-gradient(135deg, #FAF7F2 0%, #F2D9D0 50%, #FAF7F2 100%)' }}

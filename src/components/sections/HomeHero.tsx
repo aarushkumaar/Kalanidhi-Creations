@@ -45,8 +45,18 @@ function CornerOrb() {
 }
 
 export default function HomeHero() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const [mounted,   setMounted]   = useState(false);
+  const [heroOpacity, setHeroOpacity] = useState(1);
+
+  useEffect(() => {
+    setMounted(true);
+    const onScroll = () => {
+      const progress = Math.min(window.scrollY / window.innerHeight, 1);
+      setHeroOpacity(1 - progress);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -58,7 +68,10 @@ export default function HomeHero() {
   };
 
   return (
-    <section className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-[#FAF7F2]">
+    <section
+      className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-[#FAF7F2]"
+      style={{ opacity: heroOpacity, zIndex: 20, position: 'relative' }}
+    >
       <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(242,217,208,0.45) 0%, transparent 70%)' }} />
       <AnimatePresence>
         {mounted && <><LotusOrb /><CornerOrb /></>}

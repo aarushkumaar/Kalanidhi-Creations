@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { getPieceById } from '@/utils/firebase/db';
 import { notFound } from 'next/navigation';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function PiecePage({ params }: { params: { id: string } }) {
   const piece = await getPieceById(params.id) as any;

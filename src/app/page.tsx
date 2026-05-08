@@ -1,27 +1,50 @@
+import nextDynamic from 'next/dynamic';
 import HomeHero from '@/components/sections/HomeHero';
 import Marquee from '@/components/sections/Marquee';
-import { getFeaturedPieces, getTestimonials, getCategories } from '@/utils/firebase/db';
-import HomeClient from '@/components/sections/HomeClient';
 
-export const revalidate = 60;
+// All heavy / data-fetching components are loaded client-side only.
+// This page renders instantly — Firestore is never awaited on the server.
+const LehangaSection = nextDynamic(
+  () => import('@/components/sections/LehangaSection'),
+  { ssr: false }
+);
 
-export default async function Home() {
-  const featuredPieces = await getFeaturedPieces(8).catch(() => []) as any[];
-  const testimonials   = await getTestimonials().catch(() => []) as any[];
-  const collections    = await getCategories().catch(() => []) as any[];
+const WorldMap = nextDynamic(
+  () => import('@/components/sections/WorldMap'),
+  { ssr: false }
+);
 
-  const featuredTestimonial  = testimonials.find((t: any) => t.isFeatured) || testimonials[0];
-  const featuredCollections  = collections.slice(0, 4);
+const TestimonialsMarquee = nextDynamic(
+  () => import('@/components/sections/TestimonialsMarquee'),
+  { ssr: false }
+);
 
+const HomeClient = nextDynamic(
+  () => import('@/components/sections/HomeClient'),
+  { ssr: false }
+);
+
+// Plain server component — no async, no Firestore, renders immediately.
+export default function Home() {
   return (
     <div className="w-full">
+      {/* 1 — Hero (pure JSX, zero deps) */}
       <HomeHero />
-      <Marquee text="New Bridal Collection • Exquisite Necklaces • Everyday Elegance • Handcrafted Heritage • " />
-      <HomeClient
-        featuredPieces={featuredPieces}
-        featuredCollections={featuredCollections}
-        featuredTestimonial={featuredTestimonial ?? null}
-      />
+
+      {/* 2 — Scroll-driven canvas animation */}
+      <LehangaSection />
+
+      {/* 3 — Gold marquee */}
+      <Marquee text="New Bridal Collection • Exquisite Lehengas • Everyday Elegance • Handcrafted Heritage • " />
+
+      {/* 4 — Products + collections + brand story — fetches its own data client-side */}
+      <HomeClient />
+
+      {/* 5 — World map */}
+      <WorldMap />
+
+      {/* 6 — Testimonials marquee — fetches its own data client-side */}
+      <TestimonialsMarquee />
     </div>
   );
 }

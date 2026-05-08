@@ -1,9 +1,18 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
+import { getFeaturedPieces, getCategories } from '@/utils/firebase/db';
+
+/* ─── Timeout helper ────────────────────────────────────────────────────────── */
+function withTimeout<T>(p: Promise<T>, ms = 1500, fallback: T): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
 
 /* ─── Reusable fade-up section wrapper ─────────────────────────────────────── */
 function FadeUp({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
@@ -36,7 +45,7 @@ function Shimmer({ className = '' }: { className?: string }) {
   return <div className={`skeleton ${className}`} />;
 }
 
-/* ─── Product card with hover scale + shimmer load ────────────────────────── */
+/* ─── Product card ────────────────────────────────────────────────────────── */
 function ProductCard({ piece, index }: { piece: any; index: number }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
@@ -75,12 +84,12 @@ function ProductCard({ piece, index }: { piece: any; index: number }) {
   );
 }
 
-/* ─── Horizontal scroll mosaic ──────────────────────────────────────────────── */
-function ProductMosaic({ pieces }: { pieces: any[] }) {
+/* ─── Product mosaic ──────────────────────────────────────────────────────────── */
+function ProductMosaic({ pieces, loading }: { pieces: any[]; loading: boolean }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
 
-  if (pieces.length === 0) {
+  if (loading || pieces.length === 0) {
     return (
       <div className="flex gap-6 overflow-x-auto pb-6 -mx-6 px-6 md:-mx-12 md:px-12 scrollbar-hide">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -111,7 +120,7 @@ function ProductMosaic({ pieces }: { pieces: any[] }) {
   );
 }
 
-/* ─── Collection tile (half-width card) ─────────────────────────────────────── */
+/* ─── Collection tile ─────────────────────────────────────────────────────────── */
 function CollectionTile({ col, index }: { col: any; index: number }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
@@ -144,7 +153,6 @@ function CollectionTile({ col, index }: { col: any; index: number }) {
             />
           )}
         </div>
-        {/* overlay */}
         <AnimatePresence>
           <motion.div
             className="absolute inset-0"
@@ -173,7 +181,7 @@ function CollectionTile({ col, index }: { col: any; index: number }) {
   );
 }
 
-/* ─── Decorative divider ─────────────────────────────────────────────────────── */
+/* ─── Gold divider ─────────────────────────────────────────────────────────────── */
 function GoldDivider() {
   return (
     <div className="flex items-center justify-center gap-4 my-6">
@@ -186,14 +194,25 @@ function GoldDivider() {
   );
 }
 
-/* ─── Main client component ──────────────────────────────────────────────────── */
-interface Props {
-  featuredPieces: any[];
-  featuredCollections: any[];
-  featuredTestimonial: any | null;
-}
+/* ─── Main component — self-fetches data client-side ────────────────────────── */
+export default function HomeClient() {
+  const [featuredPieces, setFeaturedPieces] = useState<any[]>([]);
+  const [featuredCollections, setFeaturedCollections] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default function HomeClient({ featuredPieces, featuredCollections, featuredTestimonial }: Props) {
+  useEffect(() => {
+    Promise.all([
+      withTimeout(getFeaturedPieces(8).catch(() => []), 1500, []),
+      withTimeout(getCategories().catch(() => []), 1500, []),
+    ]).then(([pieces, collections]) => {
+      setFeaturedPieces(pieces as any[]);
+      setFeaturedCollections((collections as any[]).slice(0, 4));
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
+    });
+  }, []);
+
   return (
     <>
       {/* ── PRODUCT MOSAIC ───────────────────────────────────────────────────── */}
@@ -209,7 +228,7 @@ export default function HomeClient({ featuredPieces, featuredCollections, featur
             </p>
           </div>
         </FadeUp>
-        <ProductMosaic pieces={featuredPieces} />
+        <ProductMosaic pieces={featuredPieces} loading={loading} />
         <FadeUp delay={0.2}>
           <div className="flex justify-center mt-14">
             <Link
@@ -228,7 +247,7 @@ export default function HomeClient({ featuredPieces, featuredCollections, featur
       </div>
 
       {/* ── COLLECTION TILES ─────────────────────────────────────────────────── */}
-      {featuredCollections.length > 0 && (
+      {!loading && featuredCollections.length > 0 && (
         <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto">
           <FadeUp>
             <div className="flex flex-col items-center text-center mb-12">
@@ -273,34 +292,6 @@ export default function HomeClient({ featuredPieces, featuredCollections, featur
           </div>
         </FadeUp>
       </section>
-
-      {/* ── TESTIMONIAL ──────────────────────────────────────────────────────── */}
-      {featuredTestimonial && (
-        <section className="py-28 bg-[#1a1a1a] text-center px-6 border-t border-[#c9a96e]/10">
-          <FadeUp>
-            <div className="max-w-3xl mx-auto flex flex-col items-center">
-              <div className="w-8 h-px bg-[#c9a96e] mb-10" />
-              <p className="font-serif italic text-2xl md:text-3xl text-white/90 leading-relaxed mb-10 text-balance" style={{ fontWeight: 300 }}>
-                &ldquo;{featuredTestimonial.quote}&rdquo;
-              </p>
-              <div className="flex flex-col items-center gap-1">
-                <span className="uppercase tracking-[0.25em] text-xs text-[#c9a96e]">{featuredTestimonial.authorName}</span>
-                <span className="text-xs text-white/40 uppercase tracking-widest">{featuredTestimonial.authorDetail}</span>
-              </div>
-              <div className="w-8 h-px bg-[#c9a96e] mt-10" />
-            </div>
-          </FadeUp>
-        </section>
-      )}
-
-      {/* ── MINIMAL SERIF FOOTER ACCENT ──────────────────────────────────────── */}
-      <div className="py-12 text-center">
-        <FadeUp>
-          <p className="font-serif italic text-[#C9B8A8] text-sm tracking-widest" style={{ fontWeight: 300 }}>
-            Handcrafted with love · Kalanidhi Creations
-          </p>
-        </FadeUp>
-      </div>
     </>
   );
 }

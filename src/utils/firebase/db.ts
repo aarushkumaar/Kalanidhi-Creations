@@ -8,8 +8,11 @@ import { db } from './config';
 
 export async function getCategories() {
   const q = query(collection(db, 'categories'), orderBy('sortOrder'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const snap = await Promise.race([
+    getDocs(q),
+    new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+  ]).catch(() => ({ docs: [] }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 
 export async function getCategoryBySlug(slug: string) {
@@ -43,8 +46,11 @@ export async function getFeaturedPieces(count = 3) {
     where('isAvailable', '==', true),
     limit(count)
   );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const snap = await Promise.race([
+    getDocs(q),
+    new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+  ]).catch(() => ({ docs: [] }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 
 export async function getPiecesByCategory(categoryId: string) {
@@ -54,7 +60,7 @@ export async function getPiecesByCategory(categoryId: string) {
     orderBy('createdAt', 'desc')
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 
 export async function getPieceById(id: string) {
@@ -66,7 +72,7 @@ export async function getPieceById(id: string) {
 export async function getAllPieces() {
   const q = query(collection(db, 'pieces'), orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 
 export async function createPiece(data: any) {
@@ -86,7 +92,21 @@ export async function getTestimonials() {
     orderBy('sortOrder')
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+}
+
+/** Returns only testimonials marked active:true (new schema) OR isFeatured:true (legacy) */
+export async function getActiveTestimonials() {
+  const snap = await Promise.race([
+    getDocs(collection(db, 'testimonials')),
+    new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+  ]).catch(() => ({ docs: [] }));
+  const all = snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as any));
+  // Support both schemas
+  const active = all.filter((t: any) =>
+    t.active === true || t.isFeatured === true
+  );
+  return active.length > 0 ? active : all; // fall back to all if none marked
 }
 
 export async function createTestimonial(data: any) {
@@ -117,7 +137,7 @@ export async function createEnquiry(data: any) {
 export async function getEnquiries() {
   const q = query(collection(db, 'enquiries'), orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 
 export async function markEnquiryRead(id: string) {
@@ -153,7 +173,7 @@ export async function setSetting(key: string, value: string) {
 
 export async function getAdmins() {
   const snap = await getDocs(collection(db, 'admins'));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 
 export async function addAdmin(email: string) {
