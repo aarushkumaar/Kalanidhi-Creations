@@ -7,11 +7,20 @@ import { db } from './config';
 // ── CATEGORIES ─────────────────────────────────────────────────────────────
 
 export async function getCategories() {
-  const q = query(collection(db, 'categories'), orderBy('sortOrder'));
+  // Order by 'name' — 'sortOrder' is not guaranteed to exist on every document
+  const q = query(collection(db, 'categories'), orderBy('name'));
   const snap = await Promise.race([
     getDocs(q),
     new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
-  ]).catch(() => ({ docs: [] }));
+  ]).catch(async () => {
+    // If ordered query fails (e.g. missing index), fall back to unordered fetch
+    try {
+      const fallback = await getDocs(collection(db, 'categories'));
+      return fallback;
+    } catch {
+      return { docs: [] };
+    }
+  });
   return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 

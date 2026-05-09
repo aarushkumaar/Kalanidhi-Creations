@@ -50,6 +50,9 @@ function ProductCard({ piece, index }: { piece: any; index: number }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  const imgSrc = piece.coverImage || piece.imageUrl || piece.images?.[0] || '';
 
   return (
     <motion.div
@@ -60,13 +63,15 @@ function ProductCard({ piece, index }: { piece: any; index: number }) {
     >
       <Link href={`/pieces/${piece.id}`} className="group block">
         <div className="relative aspect-[3/4] overflow-hidden bg-[#F2D9D0]">
-          {!imgLoaded && <Shimmer className="absolute inset-0" />}
-          {piece.coverImage && (
+          {!imgLoaded && !imgError && <Shimmer className="absolute inset-0" />}
+          {imgSrc && !imgError && (
             <Image
-              src={piece.coverImage}
+              src={imgSrc}
               alt={piece.name}
               fill
+              unoptimized
               onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)}
               className={`object-cover transition-transform duration-700 group-hover:scale-105 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
               sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 25vw"
             />
@@ -142,12 +147,14 @@ function CollectionTile({ col, index }: { col: any; index: number }) {
         onMouseLeave={() => setHovered(false)}
       >
         <div className="absolute inset-0 bg-[#C9B8A8]">
-          {col.coverImage && (
+          {(col.coverImage || col.imageUrl || col.images?.[0]) && (
             <Image
-              src={col.coverImage}
+              src={col.coverImage || col.imageUrl || col.images?.[0]}
               alt={col.name}
               fill
+              unoptimized
               loading="lazy"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               className="object-cover transition-transform duration-700 group-hover:scale-105"
               sizes="(max-width:768px) 100vw, 50vw"
             />

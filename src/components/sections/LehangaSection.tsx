@@ -2,11 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-/**
- * SETUP: Place 192 sequential frames in public/assets/lehanga/
- * Epected filenames: 0001x.jpg, 0002.jpg, ... 0192.jpg  (4-digit zero-padded)
- * Adjust FRAME_PATH below if your naming differs.
- */
 const TOTAL_FRAMES = 192;
 const FRAME_PATH = (i: number) =>
   `/assets/lehanga/${String(i + 1).padStart(4, '0')}.jpg`;
@@ -20,26 +15,27 @@ interface TextStage {
   color?: string;
 }
 
+// ── Wider ranges = text stays longer on screen ──────────────────────────────
 const TEXT_STAGES: TextStage[] = [
-  { startPct: 0.30, endPct: 0.48, side: 'right', text: 'Since 2005', large: true, color: '#C9A84C' },
-  { startPct: 0.50, endPct: 0.63, side: 'left', text: '25+ Years of Excellence', color: '#FAF7F2' },
-  { startPct: 0.65, endPct: 0.83, side: 'right', text: 'Handcrafted with Love', color: '#FAF7F2' },
+  { startPct: 0.22, endPct: 0.52, side: 'right', text: 'Since 2005',             large: true, color: '#C9A84C' },
+  { startPct: 0.48, endPct: 0.70, side: 'left',  text: '25+ Years of Excellence',             color: '#FAF7F2' },
+  { startPct: 0.66, endPct: 0.90, side: 'right', text: 'Handcrafted with Love',               color: '#FAF7F2' },
 ];
 
 export default function LehangaSection() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const framesRef = useRef<(HTMLImageElement | null)[]>(Array(TOTAL_FRAMES).fill(null));
-  const loadedRef = useRef(0);
-  const rafRef = useRef<number>(0);
+  const sectionRef   = useRef<HTMLDivElement>(null);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const framesRef    = useRef<(HTMLImageElement | null)[]>(Array(TOTAL_FRAMES).fill(null));
+  const loadedRef    = useRef(0);
+  const rafRef       = useRef<number>(0);
   const drawnFrameRef = useRef(-1);
 
-  const [opacity, setOpacity] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [loadPct, setLoadPct] = useState(0);
-  const [framesReady, setFramesReady] = useState(false);
+  const [opacity,      setOpacity]      = useState(0);
+  const [progress,     setProgress]     = useState(0);
+  const [loadPct,      setLoadPct]      = useState(0);
+  const [framesReady,  setFramesReady]  = useState(false);
 
-  // ── Preload all frames immediately ─────────────────────────────────────────
+  // ── Preload all frames ──────────────────────────────────────────────────────
   useEffect(() => {
     let alive = true;
     for (let i = 0; i < TOTAL_FRAMES; i++) {
@@ -49,29 +45,38 @@ export default function LehangaSection() {
       img.onload = img.onerror = () => {
         if (!alive) return;
         loadedRef.current++;
-        const pct = loadedRef.current / TOTAL_FRAMES;
-        setLoadPct(pct);
-        if (loadedRef.current >= 1) setFramesReady(true);   // ready on first frame
-        if (loadedRef.current === TOTAL_FRAMES) setFramesReady(true);
+        setLoadPct(loadedRef.current / TOTAL_FRAMES);
+        if (loadedRef.current >= 1) setFramesReady(true);
       };
     }
     return () => { alive = false; };
   }, []);
 
-  // ── Draw a single frame onto canvas ────────────────────────────────────────
+  // ── Draw frame — top-anchored so model's face is never cropped ─────────────
   const drawFrame = useCallback((index: number) => {
     const canvas = canvasRef.current;
-    const img = framesRef.current[index];
+    const img    = framesRef.current[index];
     if (!canvas || !img?.complete || !img.naturalWidth) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const W = canvas.width = window.innerWidth;
-    const H = canvas.height = window.innerHeight;
-    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
-    const x = (W - img.naturalWidth * scale) / 2;
-    const y = (H - img.naturalHeight * scale) / 2;
+
+    const W = (canvas.width  = window.innerWidth);
+    const H = (canvas.height = window.innerHeight);
+
+    // Scale to cover the viewport (object-fit: cover)
+    const scale   = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const scaledW = img.naturalWidth  * scale;
+    const scaledH = img.naturalHeight * scale;
+
+    // Horizontal: center the image
+    const x = (W - scaledW) / 2;
+
+    // Vertical: anchor to TOP when taller than viewport (preserves face/head).
+    // Only center when the scaled image is shorter (rare edge case).
+    const y = scaledH > H ? 0 : (H - scaledH) / 2;
+
     ctx.clearRect(0, 0, W, H);
-    ctx.drawImage(img, x, y, img.naturalWidth * scale, img.naturalHeight * scale);
+    ctx.drawImage(img, x, y, scaledW, scaledH);
   }, []);
 
   // ── Scroll handler ─────────────────────────────────────────────────────────
@@ -86,27 +91,27 @@ export default function LehangaSection() {
         const section = sectionRef.current;
         if (!section) return;
 
-        const scrollY = window.scrollY;
-        const viewH = window.innerHeight;
-        const secTop = section.offsetTop;
-        const secH = section.offsetHeight;
+        const scrollY  = window.scrollY;
+        const viewH    = window.innerHeight;
+        const secTop   = section.offsetTop;
+        const secH     = section.offsetHeight;
         const scrollEnd = secTop + secH - viewH;
 
-        // progress [0..1] through the scroll container
-        const prog = Math.max(0, Math.min((scrollY - secTop) / Math.max(scrollEnd - secTop, 1), 1));
+        const prog = Math.max(0, Math.min(
+          (scrollY - secTop) / Math.max(scrollEnd - secTop, 1), 1
+        ));
         setProgress(prog);
 
-        // Canvas fade: in over first 300px into section, out over last 300px
-        const scrolledIn = scrollY - secTop;
+        // Fade in over first 300 px, fade out over last 300 px
+        const scrolledIn  = scrollY - secTop;
         const scrolledOut = secTop + secH - scrollY - viewH;
         const alpha = Math.min(
-          Math.max(scrolledIn / 300, 0),
+          Math.max(scrolledIn  / 300, 0),
           Math.max(scrolledOut / 300, 0),
           1
         );
         setOpacity(alpha);
 
-        // Frame index
         const frameIndex = Math.min(Math.round(prog * (TOTAL_FRAMES - 1)), TOTAL_FRAMES - 1);
         if (frameIndex !== drawnFrameRef.current) {
           drawnFrameRef.current = frameIndex;
@@ -123,19 +128,25 @@ export default function LehangaSection() {
     };
   }, [drawFrame]);
 
-  // ── Text overlay helpers ───────────────────────────────────────────────────
+  // ── Text helpers — work correctly for both down AND up scrolling ────────────
   function stageOpacity(stage: TextStage, prog: number): number {
-    const fadeLen = 0.05;
+    const fadeLen = 0.07; // longer fade window
     if (prog < stage.startPct || prog > stage.endPct) return 0;
     if (prog < stage.startPct + fadeLen) return (prog - stage.startPct) / fadeLen;
-    if (prog > stage.endPct - fadeLen) return (stage.endPct - prog) / fadeLen;
+    if (prog > stage.endPct   - fadeLen) return (stage.endPct - prog)   / fadeLen;
     return 1;
   }
 
   function stageTranslate(stage: TextStage, prog: number): string {
     const so = stageOpacity(stage, prog);
+    // Direction-aware: slide from the correct edge whether scrolling in or out
     if (so === 0) {
-      return stage.side === 'right' ? 'translateX(28px)' : 'translateX(-28px)';
+      // Below the stage (scrolling down, not reached yet) → slide in from edge
+      // Above the stage (scrolled past)                   → slide out to edge
+      const dir = prog < stage.startPct ? 1 : -1;
+      return stage.side === 'right'
+        ? `translateX(${32 * dir}px)`
+        : `translateX(${-32 * dir}px)`;
     }
     return 'translateX(0px)';
   }
@@ -143,8 +154,7 @@ export default function LehangaSection() {
   const visible = opacity > 0.02;
 
   return (
-    <div ref={sectionRef} style={{ height: '300vh', position: 'relative' }}>
-      {/* Fixed canvas layer */}
+    <div ref={sectionRef} style={{ height: '400vh', position: 'relative' }}>
       <div
         style={{
           position: 'fixed', inset: 0, zIndex: 10,
@@ -165,7 +175,7 @@ export default function LehangaSection() {
           </div>
         )}
 
-        {/* Text overlays */}
+        {/* Text overlays — with text-shadow for legibility */}
         {visible && framesReady && TEXT_STAGES.map((stage, i) => {
           const so = stageOpacity(stage, progress);
           return (
@@ -174,22 +184,26 @@ export default function LehangaSection() {
               style={{
                 position: 'absolute',
                 top: '50%',
-                [stage.side]: '6%',
+                [stage.side]: '5%',
                 transform: `translateY(-50%) ${stageTranslate(stage, progress)}`,
                 opacity: so,
-                transition: 'opacity 0.6s ease, transform 0.6s ease',
-                maxWidth: '26%',
+                transition: 'opacity 0.5s ease, transform 0.5s ease',
+                maxWidth: '28%',
                 textAlign: stage.side === 'right' ? 'right' : 'left',
                 pointerEvents: 'none',
               }}
             >
               <p style={{
                 fontFamily: '"Cormorant Garamond", Georgia, serif',
-                color: stage.color ?? '#FAF7F2',
-                fontSize: stage.large ? 'clamp(2.4rem,4.5vw,3.6rem)' : 'clamp(1.4rem,2.8vw,2.2rem)',
-                fontWeight: 300,
-                lineHeight: 1.25,
+                color:       stage.color ?? '#FAF7F2',
+                fontSize:    stage.large
+                  ? 'clamp(2.8rem, 5.5vw, 4.4rem)'
+                  : 'clamp(1.6rem, 3.2vw, 2.6rem)',
+                fontWeight:    300,
+                lineHeight:    1.2,
                 letterSpacing: '0.04em',
+                // ── Subtle drop-shadow so text pops against any background ──
+                textShadow: '0 2px 24px rgba(0,0,0,0.7), 0 0 48px rgba(0,0,0,0.4)',
               }}>{stage.text}</p>
             </div>
           );
