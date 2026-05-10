@@ -49,27 +49,68 @@ export async function deleteCategory(id: string) {
 // ── PIECES ──────────────────────────────────────────────────────────────────
 
 export async function getFeaturedPieces(count = 3) {
-  const q = query(
+  // Try featured pieces first
+  const featuredQ = query(
     collection(db, 'pieces'),
     where('isFeatured', '==', true),
+    limit(count)
+  );
+  const featuredSnap = await Promise.race([
+    getDocs(featuredQ),
+    new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+  ]).catch(() => ({ docs: [] }));
+
+  if (featuredSnap.docs.length > 0) {
+    return featuredSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  }
+
+  // Fallback: show any available pieces (handles case where isFeatured is false on all docs)
+  const recentQ = query(
+    collection(db, 'pieces'),
     where('isAvailable', '==', true),
     limit(count)
   );
-  const snap = await Promise.race([
-    getDocs(q),
+  const recentSnap = await Promise.race([
+    getDocs(recentQ),
     new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
   ]).catch(() => ({ docs: [] }));
-  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+
+  // Second fallback: isAvailable might not be set either — just get any pieces
+  if (recentSnap.docs.length > 0) {
+    return recentSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  }
+
+  const anyQ = query(collection(db, 'pieces'), limit(count));
+  const anySnap = await getDocs(anyQ).catch(() => ({ docs: [] }));
+  return anySnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 
-export async function getPiecesByCategory(categoryId: string) {
+export async function getPiecesByCategory(categoryId: string, categorySlug?: string) {
+  // Primary: query by categoryId (the Firestore document ID)
   const q = query(
     collection(db, 'pieces'),
-    where('categoryId', '==', categoryId),
-    orderBy('createdAt', 'desc')
+    where('categoryId', '==', categoryId)
   );
-  const snap = await getDocs(q);
-  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const snap = await Promise.race([
+    getDocs(q),
+    new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+  ]).catch(() => ({ docs: [] }));
+
+  if (snap.docs.length > 0) {
+    return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  }
+
+  // Fallback: query by categorySlug (handles pieces that saved slug instead of ID)
+  if (categorySlug) {
+    const slugQ = query(
+      collection(db, 'pieces'),
+      where('categorySlug', '==', categorySlug)
+    );
+    const slugSnap = await getDocs(slugQ).catch(() => ({ docs: [] }));
+    return slugSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  }
+
+  return [];
 }
 
 export async function getPieceById(id: string) {

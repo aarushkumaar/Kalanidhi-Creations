@@ -10,7 +10,7 @@ export default function ContactPage() {
         <p className="text-muted-foreground mb-12 max-w-md text-balance">
           Whether you are looking for a custom masterpiece or have inquiries regarding our collections, our luxury concierge is here to assist you.
         </p>
-        
+
         <div className="space-y-8 text-sm">
           <div>
             <h3 className="uppercase tracking-[0.2em] text-gold mb-2 font-medium">Email</h3>
@@ -26,7 +26,7 @@ export default function ContactPage() {
           </div>
         </div>
       </div>
-      
+
       <div className="bg-muted/30 border border-gold/10 p-8 md:p-12">
         <h3 className="text-2xl font-serif mb-8 text-gold">Send an Enquiry</h3>
         <form className="flex flex-col gap-6">
