@@ -2,105 +2,132 @@
 
 import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { getFeaturedPieces, getCategories } from '@/utils/firebase/db';
+import ProductPanel, { type PieceData } from '@/components/ui/ProductPanel';
 
-/* ─── Timeout helper ────────────────────────────────────────────────────────── */
-function withTimeout<T>(p: Promise<T>, ms = 1500, fallback: T): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
-  ]);
+function withTimeout<T>(p: Promise<T>, ms = 3000, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))]);
 }
 
-/* ─── Reusable fade-up section wrapper ─────────────────────────────────────── */
 function FadeUp({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 48 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
-      className={className}
-    >
+    <motion.div ref={ref} initial={{ opacity: 0, y: 48 }} animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }} className={className}>
       {children}
     </motion.div>
   );
 }
 
-/* ─── Section label ─────────────────────────────────────────────────────────── */
 function Label({ text }: { text: string }) {
+  return <span className="text-[10px] uppercase tracking-[0.35em] text-[#c9a96e] font-medium block">{text}</span>;
+}
+
+function GoldDivider() {
   return (
-    <span className="text-[10px] uppercase tracking-[0.35em] text-[#c9a96e] font-medium block">
-      {text}
-    </span>
+    <div className="flex items-center justify-center gap-4 my-6">
+      <div className="w-12 h-px bg-[#c9a96e]/40" />
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 0L9.5 6.5L16 8L9.5 9.5L8 16L6.5 9.5L0 8L6.5 6.5L8 0Z" fill="#c9a96e" fillOpacity="0.6" />
+      </svg>
+      <div className="w-12 h-px bg-[#c9a96e]/40" />
+    </div>
   );
 }
 
-/* ─── Shimmer skeleton ───────────────────────────────────────────────────────── */
-function Shimmer({ className = '' }: { className?: string }) {
-  return <div className={`skeleton ${className}`} />;
-}
-
-/* ─── Product card ────────────────────────────────────────────────────────── */
-function ProductCard({ piece, index }: { piece: any; index: number }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-60px' });
+/* ─── Carousel Card ─────────────────────────────────────────────────────── */
+function CarouselCard({ piece, onSelect }: { piece: any; onSelect: (p: PieceData) => void }) {
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [imgError, setImgError] = useState(false);
-
   const imgSrc = piece.coverImage || piece.imageUrl || piece.images?.[0] || '';
+  const price = piece.price && piece.price > 0
+    ? `₹${Number(piece.price).toLocaleString('en-IN')}`
+    : 'Price on enquiry';
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 36 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
+    <div
+      onClick={() => onSelect(piece)}
+      style={{
+        flexShrink: 0,
+        width: 'clamp(200px, 22vw, 280px)',
+        marginRight: 20,
+        cursor: 'pointer',
+        transition: 'transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLElement).style.transform = 'translateY(-8px)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+      }}
     >
-      <Link href={`/pieces/${piece.id}`} className="group block">
-        <div className="relative aspect-[3/4] overflow-hidden bg-[#F2D9D0]">
-          {!imgLoaded && !imgError && <Shimmer className="absolute inset-0" />}
-          {imgSrc && !imgError && (
-            <Image
-              src={imgSrc}
-              alt={piece.name}
-              fill
-              unoptimized
-              onLoad={() => setImgLoaded(true)}
-              onError={() => setImgError(true)}
-              className={`object-cover transition-transform duration-700 group-hover:scale-105 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-              sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 25vw"
-            />
-          )}
-          {piece.isFeatured && (
-            <span className="absolute top-3 left-3 text-[9px] uppercase tracking-[0.25em] bg-[#c9a96e] text-white px-2.5 py-1">Featured</span>
-          )}
-        </div>
-        <div className="pt-4">
-          <p className="font-serif text-lg text-[#1a1a1a] leading-snug group-hover:text-[#c9a96e] transition-colors duration-300">{piece.name}</p>
-          <p className="text-sm text-[#7a6a60] mt-1">₹{Number(piece.price).toLocaleString('en-IN')}</p>
-        </div>
-      </Link>
-    </motion.div>
+      {/* Image */}
+      <div style={{
+        aspectRatio: '3/4',
+        background: '#F2D9D0',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: '0 4px 24px rgba(26,20,16,0.07)',
+        transition: 'box-shadow 0.4s',
+      }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(201,168,76,0.18)';
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(26,20,16,0.07)';
+        }}
+      >
+        {!imgLoaded && (
+          <div style={{ position: 'absolute', inset: 0, background: '#F2D9D0' }} className="skeleton" />
+        )}
+        {imgSrc && (
+          <img
+            src={imgSrc}
+            alt={piece.name || ''}
+            onLoad={() => setImgLoaded(true)}
+            style={{
+              width: '100%', height: '100%', objectFit: 'cover',
+              opacity: imgLoaded ? 1 : 0,
+              transition: 'opacity 0.3s, transform 0.6s',
+              display: 'block',
+            }}
+          />
+        )}
+      </div>
+      {/* Info */}
+      <div style={{ paddingTop: 12 }}>
+        <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: '0.88rem', color: '#1a1410', lineHeight: 1.4, marginBottom: 4 }}>
+          {piece.name}
+        </p>
+        <p style={{
+          fontFamily: "'Cormorant Garamond',Georgia,serif",
+          fontSize: '0.95rem',
+          color: piece.price && piece.price > 0 ? '#C9A84C' : '#9b8e86',
+          fontStyle: piece.price && piece.price > 0 ? 'normal' : 'italic',
+        }}>
+          {price}
+        </p>
+      </div>
+    </div>
   );
 }
 
-/* ─── Product mosaic ──────────────────────────────────────────────────────────── */
-function ProductMosaic({ pieces, loading }: { pieces: any[]; loading: boolean }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-60px' });
+/* ─── Infinite Carousel ─────────────────────────────────────────────────── */
+function InfiniteCarousel({ pieces, onSelect }: { pieces: any[]; onSelect: (p: PieceData) => void }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [paused, setPaused] = useState(false);
 
-  if (loading || pieces.length === 0) {
+  // Need at least 2 full sets for seamless loop
+  const doubled = pieces.length > 0 ? [...pieces, ...pieces, ...pieces] : [];
+
+  if (pieces.length === 0) {
     return (
-      <div className="flex gap-6 overflow-x-auto pb-6 -mx-6 px-6 md:-mx-12 md:px-12 scrollbar-hide">
+      <div style={{ display: 'flex', gap: 20, padding: '8px 0' }}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex-shrink-0 w-52 md:w-64">
-            <Shimmer className="aspect-[3/4]" />
-            <div className="mt-3 h-4 w-3/4 skeleton" />
+          <div key={i} style={{ flexShrink: 0, width: 'clamp(200px,22vw,280px)' }}>
+            <div style={{ aspectRatio: '3/4' }} className="skeleton" />
+            <div style={{ height: 14, width: '70%', marginTop: 12 }} className="skeleton" />
           </div>
         ))}
       </div>
@@ -108,28 +135,41 @@ function ProductMosaic({ pieces, loading }: { pieces: any[]; loading: boolean })
   }
 
   return (
-    <motion.div
-      ref={ref}
-      className="flex gap-6 overflow-x-auto pb-6 -mx-6 px-6 md:-mx-12 md:px-12"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      initial={{ opacity: 0 }}
-      animate={inView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.6 }}
+    <div
+      ref={wrapperRef}
+      style={{ overflow: 'hidden', width: '100%', position: 'relative', cursor: 'grab' }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
     >
-      {pieces.map((piece: any, i: number) => (
-        <div key={piece.id} className="flex-shrink-0 w-52 md:w-64">
-          <ProductCard piece={piece} index={i} />
-        </div>
-      ))}
-    </motion.div>
+      <div
+        style={{
+          display: 'flex',
+          width: 'fit-content',
+          animation: `carouselScroll ${pieces.length * 4}s linear infinite`,
+          animationPlayState: paused ? 'paused' : 'running',
+        }}
+      >
+        {doubled.map((piece, i) => (
+          <CarouselCard key={`${piece.id}-${i}`} piece={piece} onSelect={onSelect} />
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes carouselScroll {
+          from { transform: translateX(0); }
+          to   { transform: translateX(calc(-100% / 3)); }
+        }
+      `}</style>
+    </div>
   );
 }
 
-/* ─── Collection tile ─────────────────────────────────────────────────────────── */
+/* ─── Collection Tile ──────────────────────────────────────────────────── */
 function CollectionTile({ col, index }: { col: any; index: number }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
   const [hovered, setHovered] = useState(false);
+  const imgSrc = col.coverImage || col.imageUrl || col.images?.[0] || '';
 
   return (
     <motion.div
@@ -147,97 +187,92 @@ function CollectionTile({ col, index }: { col: any; index: number }) {
         onMouseLeave={() => setHovered(false)}
       >
         <div className="absolute inset-0 bg-[#C9B8A8]">
-          {(col.coverImage || col.imageUrl || col.images?.[0]) && (
-            <Image
-              src={col.coverImage || col.imageUrl || col.images?.[0]}
+          {imgSrc && (
+            <img
+              src={imgSrc}
               alt={col.name}
-              fill
-              unoptimized
-              loading="lazy"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-              sizes="(max-width:768px) 100vw, 50vw"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              style={{
+                width: '100%', height: '100%', objectFit: 'cover',
+                transition: 'transform 0.7s',
+                transform: hovered ? 'scale(1.05)' : 'scale(1)',
+              }}
             />
           )}
         </div>
-        <AnimatePresence>
-          <motion.div
-            className="absolute inset-0"
-            animate={{ backgroundColor: hovered ? 'rgba(26,26,26,0.65)' : 'rgba(26,26,26,0.35)' }}
-            transition={{ duration: 0.4 }}
-          />
-        </AnimatePresence>
+        <div className="absolute inset-0" style={{
+          background: hovered ? 'rgba(26,26,26,0.65)' : 'rgba(26,26,26,0.35)',
+          transition: 'background 0.4s',
+        }} />
         <div className="absolute bottom-0 inset-x-0 p-6 md:p-8">
-          <motion.h3
-            className="font-serif text-2xl md:text-3xl text-white leading-tight"
-            animate={{ y: hovered ? -4 : 0 }}
-            transition={{ duration: 0.35 }}
-          >
+          <h3 className="font-serif text-2xl md:text-3xl text-white leading-tight"
+            style={{ transform: hovered ? 'translateY(-4px)' : 'translateY(0)', transition: 'transform 0.35s' }}>
             {col.name}
-          </motion.h3>
-          <motion.span
-            className="text-[10px] uppercase tracking-[0.25em] text-[#c9a96e] mt-2 block"
-            animate={{ opacity: hovered ? 1 : 0.6, y: hovered ? 0 : 4 }}
-            transition={{ duration: 0.35 }}
-          >
+          </h3>
+          <span className="text-[10px] uppercase tracking-[0.25em] text-[#c9a96e] mt-2 block"
+            style={{ opacity: hovered ? 1 : 0.6, transform: hovered ? 'translateY(0)' : 'translateY(4px)', transition: 'all 0.35s' }}>
             Explore Collection →
-          </motion.span>
+          </span>
         </div>
       </Link>
     </motion.div>
   );
 }
 
-/* ─── Gold divider ─────────────────────────────────────────────────────────────── */
-function GoldDivider() {
-  return (
-    <div className="flex items-center justify-center gap-4 my-6">
-      <div className="w-12 h-px bg-[#c9a96e]/40" />
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M8 0L9.5 6.5L16 8L9.5 9.5L8 16L6.5 9.5L0 8L6.5 6.5L8 0Z" fill="#c9a96e" fillOpacity="0.6" />
-      </svg>
-      <div className="w-12 h-px bg-[#c9a96e]/40" />
-    </div>
-  );
-}
-
-/* ─── Main component — self-fetches data client-side ────────────────────────── */
+/* ─── Main export ──────────────────────────────────────────────────────── */
 export default function HomeClient() {
   const [featuredPieces, setFeaturedPieces] = useState<any[]>([]);
   const [featuredCollections, setFeaturedCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPiece, setSelectedPiece] = useState<PieceData | null>(null);
 
   useEffect(() => {
     Promise.all([
-      withTimeout(getFeaturedPieces(8).catch(() => []), 1500, []),
-      withTimeout(getCategories().catch(() => []), 1500, []),
+      withTimeout(getFeaturedPieces(16).catch(() => []), 3000, []),
+      withTimeout(getCategories().catch(() => []), 3000, []),
     ]).then(([pieces, collections]) => {
       setFeaturedPieces(pieces as any[]);
       setFeaturedCollections((collections as any[]).slice(0, 4));
       setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, []);
 
   return (
     <>
-      {/* ── PRODUCT MOSAIC ───────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto">
-        <FadeUp>
-          <div className="flex flex-col items-center text-center mb-12">
-            <Label text="Curated Selection" />
-            <h2 className="text-4xl md:text-5xl font-serif text-[#1a1a1a] mt-4 mb-4 leading-tight" style={{ fontWeight: 300 }}>
-              Featured Masterpieces
-            </h2>
-            <p className="text-[#7a6a60] max-w-md text-sm leading-relaxed">
-              Each piece tells a story of heritage, precision, and unparalleled beauty.
-            </p>
-          </div>
-        </FadeUp>
-        <ProductMosaic pieces={featuredPieces} loading={loading} />
+      {/* ── FEATURED MASTERPIECES CAROUSEL ───────────────────────────── */}
+      <section className="py-24">
+        <div className="px-6 md:px-12 max-w-7xl mx-auto">
+          <FadeUp>
+            <div className="flex flex-col items-center text-center mb-12">
+              <Label text="Curated Selection" />
+              <h2 className="text-4xl md:text-5xl font-serif text-[#1a1a1a] mt-4 mb-4 leading-tight" style={{ fontWeight: 300 }}>
+                Featured Masterpieces
+              </h2>
+              <p className="text-[#7a6a60] max-w-md text-sm leading-relaxed">
+                Each piece tells a story of heritage, precision, and unparalleled beauty.
+              </p>
+            </div>
+          </FadeUp>
+        </div>
+
+        {/* Full-bleed carousel — no max-width cap */}
+        <div className="px-6 md:px-12">
+          {loading ? (
+            <div style={{ display: 'flex', gap: 20 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} style={{ flexShrink: 0, width: 'clamp(200px,22vw,280px)' }}>
+                  <div style={{ aspectRatio: '3/4' }} className="skeleton" />
+                  <div style={{ height: 14, width: '70%', marginTop: 12 }} className="skeleton" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <InfiniteCarousel pieces={featuredPieces} onSelect={setSelectedPiece} />
+          )}
+        </div>
+
         <FadeUp delay={0.2}>
-          <div className="flex justify-center mt-14">
+          <div className="flex justify-center mt-14 px-6 md:px-12">
             <Link
               href="/collections"
               className="py-4 px-12 border border-[#c9a96e] text-[#c9a96e] hover:bg-[#c9a96e] hover:text-white transition-all duration-500 uppercase tracking-[0.25em] text-xs font-medium"
@@ -248,12 +283,12 @@ export default function HomeClient() {
         </FadeUp>
       </section>
 
-      {/* ── GOLD RULE ─────────────────────────────────────────────────────────── */}
+      {/* ── GOLD RULE ─────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <div className="h-px bg-gradient-to-r from-transparent via-[#c9a96e]/30 to-transparent" />
       </div>
 
-      {/* ── COLLECTION TILES ─────────────────────────────────────────────────── */}
+      {/* ── COLLECTION TILES ──────────────────────────────────────────── */}
       {!loading && featuredCollections.length > 0 && (
         <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto">
           <FadeUp>
@@ -272,12 +307,12 @@ export default function HomeClient() {
         </section>
       )}
 
-      {/* ── GOLD RULE ─────────────────────────────────────────────────────────── */}
+      {/* ── GOLD RULE ─────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <div className="h-px bg-gradient-to-r from-transparent via-[#c9a96e]/30 to-transparent" />
       </div>
 
-      {/* ── BRAND STORY ──────────────────────────────────────────────────────── */}
+      {/* ── BRAND STORY ───────────────────────────────────────────────── */}
       <section className="py-28 px-6 md:px-12 max-w-3xl mx-auto text-center">
         <FadeUp>
           <Label text="Our Heritage" />
@@ -290,15 +325,19 @@ export default function HomeClient() {
           </p>
           <GoldDivider />
           <div className="mt-8">
-            <Link
-              href="/story"
-              className="text-xs uppercase tracking-[0.3em] text-[#1a1a1a] border-b border-[#c9a96e] pb-1 hover:text-[#c9a96e] transition-colors duration-300"
-            >
+            <Link href="/story" className="text-xs uppercase tracking-[0.3em] text-[#1a1a1a] border-b border-[#c9a96e] pb-1 hover:text-[#c9a96e] transition-colors duration-300">
               Read Our Story
             </Link>
           </div>
         </FadeUp>
       </section>
+
+      {/* ── PRODUCT PANEL ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedPiece && (
+          <ProductPanel piece={selectedPiece} onClose={() => setSelectedPiece(null)} />
+        )}
+      </AnimatePresence>
     </>
   );
 }
