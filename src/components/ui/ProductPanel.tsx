@@ -25,7 +25,7 @@ interface ProductPanelProps {
   onClose: () => void;
 }
 
-const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '919999999999';
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '918860507279';
 
 /* ─── Full-screen Lightbox ─────────────────────────────────────────────── */
 function Lightbox({
