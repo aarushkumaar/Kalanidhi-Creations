@@ -17,23 +17,23 @@ interface TextStage {
 
 // ── Wider ranges = text stays longer on screen ──────────────────────────────
 const TEXT_STAGES: TextStage[] = [
-  { startPct: 0.22, endPct: 0.52, side: 'right', text: 'Since 2005',             large: true, color: '#C9A84C' },
-  { startPct: 0.48, endPct: 0.70, side: 'left',  text: '25+ Years of Excellence',             color: '#FAF7F2' },
-  { startPct: 0.66, endPct: 0.90, side: 'right', text: 'Handcrafted with Love',               color: '#FAF7F2' },
+  { startPct: 0.22, endPct: 0.52, side: 'right', text: 'Since 2005', large: true, color: '#C9A84C' },
+  { startPct: 0.48, endPct: 0.70, side: 'left', text: '25+ Years of Excellence', color: '#FAF7F2' },
+  { startPct: 0.66, endPct: 0.90, side: 'right', text: 'Handcrafted with Love', color: '#FAF7F2' },
 ];
 
 export default function LehangaSection() {
-  const sectionRef   = useRef<HTMLDivElement>(null);
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
-  const framesRef    = useRef<(HTMLImageElement | null)[]>(Array(TOTAL_FRAMES).fill(null));
-  const loadedRef    = useRef(0);
-  const rafRef       = useRef<number>(0);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const framesRef = useRef<(HTMLImageElement | null)[]>(Array(TOTAL_FRAMES).fill(null));
+  const loadedRef = useRef(0);
+  const rafRef = useRef<number>(0);
   const drawnFrameRef = useRef(-1);
 
-  const [opacity,      setOpacity]      = useState(0);
-  const [progress,     setProgress]     = useState(0);
-  const [loadPct,      setLoadPct]      = useState(0);
-  const [framesReady,  setFramesReady]  = useState(false);
+  const [opacity, setOpacity] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [loadPct, setLoadPct] = useState(0);
+  const [framesReady, setFramesReady] = useState(false);
 
   // ── Preload all frames ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -55,17 +55,17 @@ export default function LehangaSection() {
   // ── Draw frame — top-anchored so model's face is never cropped ─────────────
   const drawFrame = useCallback((index: number) => {
     const canvas = canvasRef.current;
-    const img    = framesRef.current[index];
+    const img = framesRef.current[index];
     if (!canvas || !img?.complete || !img.naturalWidth) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const W = (canvas.width  = window.innerWidth);
+    const W = (canvas.width = window.innerWidth);
     const H = (canvas.height = window.innerHeight);
 
     // Scale to cover the viewport (object-fit: cover)
-    const scale   = Math.max(W / img.naturalWidth, H / img.naturalHeight);
-    const scaledW = img.naturalWidth  * scale;
+    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const scaledW = img.naturalWidth * scale;
     const scaledH = img.naturalHeight * scale;
 
     // Horizontal: center the image
@@ -91,10 +91,10 @@ export default function LehangaSection() {
         const section = sectionRef.current;
         if (!section) return;
 
-        const scrollY  = window.scrollY;
-        const viewH    = window.innerHeight;
-        const secTop   = section.offsetTop;
-        const secH     = section.offsetHeight;
+        const scrollY = window.scrollY;
+        const viewH = window.innerHeight;
+        const secTop = section.offsetTop;
+        const secH = section.offsetHeight;
         const scrollEnd = secTop + secH - viewH;
 
         const prog = Math.max(0, Math.min(
@@ -103,10 +103,10 @@ export default function LehangaSection() {
         setProgress(prog);
 
         // Fade in over first 300 px, fade out over last 300 px
-        const scrolledIn  = scrollY - secTop;
+        const scrolledIn = scrollY - secTop;
         const scrolledOut = secTop + secH - scrollY - viewH;
         const alpha = Math.min(
-          Math.max(scrolledIn  / 300, 0),
+          Math.max(scrolledIn / 300, 0),
           Math.max(scrolledOut / 300, 0),
           1
         );
@@ -133,7 +133,7 @@ export default function LehangaSection() {
     const fadeLen = 0.07; // longer fade window
     if (prog < stage.startPct || prog > stage.endPct) return 0;
     if (prog < stage.startPct + fadeLen) return (prog - stage.startPct) / fadeLen;
-    if (prog > stage.endPct   - fadeLen) return (stage.endPct - prog)   / fadeLen;
+    if (prog > stage.endPct - fadeLen) return (stage.endPct - prog) / fadeLen;
     return 1;
   }
 
@@ -195,12 +195,12 @@ export default function LehangaSection() {
             >
               <p style={{
                 fontFamily: '"Cormorant Garamond", Georgia, serif',
-                color:       stage.color ?? '#FAF7F2',
-                fontSize:    stage.large
+                color: stage.color ?? '#FAF7F2',
+                fontSize: stage.large
                   ? 'clamp(2.8rem, 5.5vw, 4.4rem)'
                   : 'clamp(1.6rem, 3.2vw, 2.6rem)',
-                fontWeight:    300,
-                lineHeight:    1.2,
+                fontWeight: 300,
+                lineHeight: 1.2,
                 letterSpacing: '0.04em',
                 // ── Subtle drop-shadow so text pops against any background ──
                 textShadow: '0 2px 24px rgba(0,0,0,0.7), 0 0 48px rgba(0,0,0,0.4)',
