@@ -9,8 +9,8 @@ const LehangaSection = nextDynamic(
   { ssr: false }
 );
 
-const WorldMap = nextDynamic(
-  () => import('@/components/sections/WorldMap'),
+const GlobalPresence = nextDynamic(
+  () => import('@/components/sections/GlobalPresence'),
   { ssr: false }
 );
 
@@ -40,8 +40,8 @@ export default function Home() {
       {/* 4 — Products + collections + brand story — fetches its own data client-side */}
       <HomeClient />
 
-      {/* 5 — World map */}
-      <WorldMap />
+      {/* 5 — Global presence (replaces WorldMap) */}
+      <GlobalPresence />
 
       {/* 6 — Testimonials marquee — fetches its own data client-side */}
       <TestimonialsMarquee />

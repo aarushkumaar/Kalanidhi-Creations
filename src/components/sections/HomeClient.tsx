@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { getFeaturedPieces, getCategories } from '@/utils/firebase/db';
 import ProductPanel, { type PieceData } from '@/components/ui/ProductPanel';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 function withTimeout<T>(p: Promise<T>, ms = 3000, fallback: T): Promise<T> {
   return Promise.race([p, new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))]);
@@ -38,7 +39,7 @@ function GoldDivider() {
 }
 
 /* ─── Carousel Card ─────────────────────────────────────────────────────── */
-function CarouselCard({ piece, onSelect }: { piece: any; onSelect: (p: PieceData) => void }) {
+function CarouselCard({ piece, onSelect, isMobile }: { piece: any; onSelect: (p: PieceData) => void; isMobile: boolean }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const imgSrc = piece.coverImage || piece.imageUrl || piece.images?.[0] || '';
   const price = piece.price && piece.price > 0
@@ -50,16 +51,17 @@ function CarouselCard({ piece, onSelect }: { piece: any; onSelect: (p: PieceData
       onClick={() => onSelect(piece)}
       style={{
         flexShrink: 0,
-        width: 'clamp(200px, 22vw, 280px)',
+        width: isMobile ? '75vw' : 'clamp(200px, 22vw, 280px)',
         marginRight: 20,
         cursor: 'pointer',
         transition: 'transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)',
+        scrollSnapAlign: isMobile ? 'center' : undefined,
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.transform = 'translateY(-8px)';
+        if (!isMobile) (e.currentTarget as HTMLElement).style.transform = 'translateY(-8px)';
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+        if (!isMobile) (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
       }}
     >
       {/* Image */}
@@ -113,12 +115,136 @@ function CarouselCard({ piece, onSelect }: { piece: any; onSelect: (p: PieceData
   );
 }
 
-/* ─── Infinite Carousel ─────────────────────────────────────────────────── */
-function InfiniteCarousel({ pieces, onSelect }: { pieces: any[]; onSelect: (p: PieceData) => void }) {
+/* ─── Mobile Touch Carousel ─────────────────────────────────────────────── */
+function MobileCarousel({ pieces, onSelect }: { pieces: any[]; onSelect: (p: PieceData) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [activeDot, setActiveDot] = useState(0);
+  const [isDown, setIsDown] = useState(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-scroll: manually scroll by card width every 3s
+  useEffect(() => {
+    if (pieces.length === 0) return;
+    const cardWidth = window.innerWidth * 0.75 + 20; // 75vw + gap
+
+    const tick = () => {
+      if (trackRef.current) {
+        const maxScroll = trackRef.current.scrollWidth - trackRef.current.clientWidth;
+        const nextScroll = trackRef.current.scrollLeft + cardWidth;
+        if (nextScroll >= maxScroll) {
+          trackRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          trackRef.current.scrollTo({ left: nextScroll, behavior: 'smooth' });
+        }
+      }
+    };
+
+    const interval = setInterval(tick, 3000);
+    return () => clearInterval(interval);
+  }, [pieces.length]);
+
+  // Update active dot on scroll
+  const handleScroll = () => {
+    if (!trackRef.current) return;
+    const cardWidth = window.innerWidth * 0.75 + 20;
+    const idx = Math.round(trackRef.current.scrollLeft / cardWidth);
+    setActiveDot(Math.min(idx, pieces.length - 1));
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setIsDown(true);
+    startXRef.current = e.touches[0].pageX - (trackRef.current?.offsetLeft ?? 0);
+    scrollLeftRef.current = trackRef.current?.scrollLeft ?? 0;
+    if (animationRef.current) clearTimeout(animationRef.current);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!isDown || !trackRef.current) return;
+    const x = e.touches[0].pageX - (trackRef.current?.offsetLeft ?? 0);
+    const walk = (x - startXRef.current) * 1.5;
+    trackRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const onTouchEnd = () => {
+    setIsDown(false);
+  };
+
+  if (pieces.length === 0) {
+    return (
+      <div style={{ display: 'flex', gap: 20, padding: '8px 0', overflowX: 'hidden' }}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} style={{ flexShrink: 0, width: '75vw' }}>
+            <div style={{ aspectRatio: '3/4' }} className="skeleton" />
+            <div style={{ height: 14, width: '70%', marginTop: 12 }} className="skeleton" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div
+        ref={trackRef}
+        onScroll={handleScroll}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          display: 'flex',
+          overflowX: 'scroll',
+          scrollSnapType: 'x mandatory',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          paddingBottom: 8,
+        }}
+      >
+        <style>{`
+          div::-webkit-scrollbar { display: none; }
+        `}</style>
+        {pieces.map((piece, i) => (
+          <CarouselCard key={`${piece.id}-${i}`} piece={piece} onSelect={onSelect} isMobile={true} />
+        ))}
+      </div>
+
+      {/* Scroll dots */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        gap: 6,
+        marginTop: 16,
+      }}>
+        {pieces.map((_, i) => (
+          <div
+            key={i}
+            onClick={() => {
+              if (trackRef.current) {
+                const cardWidth = window.innerWidth * 0.75 + 20;
+                trackRef.current.scrollTo({ left: i * cardWidth, behavior: 'smooth' });
+              }
+            }}
+            style={{
+              width: i === activeDot ? 8 : 6,
+              height: i === activeDot ? 8 : 6,
+              borderRadius: '50%',
+              background: i === activeDot ? '#C9A84C' : '#C9B8A8',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Desktop Infinite Carousel ─────────────────────────────────────────── */
+function DesktopInfiniteCarousel({ pieces, onSelect }: { pieces: any[]; onSelect: (p: PieceData) => void }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
-
-  // Need at least 2 full sets for seamless loop
   const doubled = pieces.length > 0 ? [...pieces, ...pieces, ...pieces] : [];
 
   if (pieces.length === 0) {
@@ -150,7 +276,7 @@ function InfiniteCarousel({ pieces, onSelect }: { pieces: any[]; onSelect: (p: P
         }}
       >
         {doubled.map((piece, i) => (
-          <CarouselCard key={`${piece.id}-${i}`} piece={piece} onSelect={onSelect} />
+          <CarouselCard key={`${piece.id}-${i}`} piece={piece} onSelect={onSelect} isMobile={false} />
         ))}
       </div>
 
@@ -162,6 +288,13 @@ function InfiniteCarousel({ pieces, onSelect }: { pieces: any[]; onSelect: (p: P
       `}</style>
     </div>
   );
+}
+
+/* ─── Carousel wrapper: mobile vs desktop ──────────────────────────────── */
+function InfiniteCarousel({ pieces, onSelect }: { pieces: any[]; onSelect: (p: PieceData) => void }) {
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileCarousel pieces={pieces} onSelect={onSelect} />;
+  return <DesktopInfiniteCarousel pieces={pieces} onSelect={onSelect} />;
 }
 
 /* ─── Collection Tile ──────────────────────────────────────────────────── */
